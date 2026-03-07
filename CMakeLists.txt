@@ -49,6 +49,7 @@ add_library(libAES67 STATIC libAES67.c
         include/libAES67/endian.h
         include/libAES67/time.h
         src/time.c
+        include/libAES67/__tai.h
 )
 
 if (WIN32)

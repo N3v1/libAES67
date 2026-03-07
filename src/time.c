@@ -38,9 +38,71 @@
  * Description: Clock and time abstraction for PTP.
  */
 
-#include "../include/libAES67/time.h"
+#include <time.h>
 
-int la_time_get(la_time_t *xtp, la_clock_t clock_type) {}
+#include "../include/libAES67/time.h"
+#include "../include/libAES67/__tai.h"
+
+int la_time_get(la_time_t *xtp, const la_clock_t clock_type) {
+    if (!xtp) { return -1; }
+
+    struct timespec ts;
+
+    switch (clock_type) {
+        case LA_CLOCK_UTC:
+            if (clock_gettime(CLOCK_REALTIME, &ts) != 0) { return -1; }
+            break;
+
+        case LA_CLOCK_TAI:
+            #ifdef CLOCK_TAI
+                if (clock_gettime(CLOCK_TAI, &ts) != 0) return -1;
+            #else
+                /*
+                 * Simulate TAI on platforms without CLOCK_TAI (e.g., macOS).
+                 * Read UTC via CLOCK_REALTIME and compute TAI using leap second table <__tai.h>.
+                 */
+                if (clock_gettime(CLOCK_REALTIME, &ts) != 0) { return -1; }
+
+                int64_t ts_ns = (ts.tv_sec * LA_NS_PER_SEC) + ts.tv_nsec;
+
+                ts_ns = la_utc_ns_to_tai_ns(ts_ns);
+
+                ts.tv_sec  = ts_ns / LA_NS_PER_SEC;
+                ts.tv_nsec = (long)(ts_ns % LA_NS_PER_SEC);
+            #endif
+            break;
+
+        case LA_CLOCK_MONOTONIC:
+            #ifdef CLOCK_MONOTONIC_RAW
+                if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0) { return -1; }
+            #else
+                if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) { return -1; }
+            #endif
+            break;
+
+        case LA_CLOCK_PROCESS:
+            if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts) != 0) { return -1; }
+            break;
+
+        case LA_CLOCK_THREAD:
+            if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) { return -1; }
+            break;
+
+        case LA_CLOCK_PTP:
+        case LA_CLOCK_PTPv2:
+            // TODO: Implement PTP via ptp.h
+            return -1;
+
+        default:
+            return -1;
+    }
+
+    xtp->sec = ts.tv_sec;
+    xtp->nsec = (int_fast32_t)ts.tv_nsec;
+    la_time_normalize(xtp);
+
+    return 0;
+}
 
 int la_time_getres(la_time_t *res, la_clock_t clock) {}
 

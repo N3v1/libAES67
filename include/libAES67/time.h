@@ -49,7 +49,6 @@
 #define LIBAES67_TIME_H
 
 #include <stdint.h>
-#include <stddef.h>
 #include "platform.h"
 
 #define LA_NSEC_PER_SEC    1000000000L
