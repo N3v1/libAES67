@@ -47,6 +47,8 @@ option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" OFF)
 add_library(libAES67 STATIC libAES67.c
         include/libAES67/platform.h
         include/libAES67/endian.h
+        include/libAES67/time.h
+        src/time.c
 )
 
 if (WIN32)

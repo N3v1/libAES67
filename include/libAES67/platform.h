@@ -42,17 +42,17 @@
 #define LIBAES67_PLATFORM_H
 
 #ifdef __cplusplus
-    #define LIBAES67_EXTERN_C_BEGIN extern "C" {
-    #define LIBAES67_EXTERN_C_END   }
+    #define __LA_BEGIN_C_DECLS extern "C" {
+    #define __LA_END_C_DECLS   }
 #else
-    #define LIBAES67_EXTERN_C_BEGIN
-    #define LIBAES67_EXTERN_C_END
+    #define __LA_BEGIN_C_DECLS
+    #define __LA_END_C_DECLS
 #endif
 
 #ifdef __cplusplus
-#define LIBAES67_EXTERN_C extern "C"
+#define __LA_EXTERN_C extern "C"
 #else
-#define LIBAES67_EXTERN_C
+#define __LA_EXTERN_C
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)

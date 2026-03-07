@@ -66,7 +66,7 @@
 #endif
 #endif
 
-LIBAES67_EXTERN_C_BEGIN
+__LA_BEGIN_C_DECLS
 
 // static inline uint16_t la_htobe16(uint16_t x) { return htobe16(x); }
 // static inline uint16_t la_htole16(const uint16_t x) { return htole16(x); }
@@ -153,6 +153,6 @@ LA_INLINE int la_is_little_endian_host(void) {
 #endif
 }
 
-LIBAES67_EXTERN_C_END
+__LA_END_C_DECLS
 
 #endif /* LIBAES67_ENDIAN_H */
