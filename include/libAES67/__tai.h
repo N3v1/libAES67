@@ -127,7 +127,6 @@ LA_INLINE size_t __la_leap_count(const int64_t utc_sec) {
     return lhs;
 }
 
-
 /**
  * @brief Compute the TAI offset for a given UTC timestamp.
  *
@@ -174,7 +173,7 @@ LA_INLINE int64_t la_utc_ns_to_tai_ns(const int64_t utc_ns) {
     const int64_t utc_sec = utc_ns / LA_NS_PER_SEC;
     const int64_t offset = __la_tai_offset(utc_sec);
 
-    return utc_ns + offset * LA_NS_PER_SEC;
+    return utc_ns + (offset * LA_NS_PER_SEC);
 }
 
 /**

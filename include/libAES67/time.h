@@ -188,12 +188,12 @@ int la_time_get(la_time_t *xtp, la_clock_t clock_type);
  * @brief Retrieve the resolution of a specified clock.
  *
  * @param res Pointer to la_time_t to store clock resolution.
- * @param clock Clock source (see la_clock_t).
+ * @param clock_type Clock source (see la_clock_t).
  * @return 0 on success, non-zero on error.
  *
  * The resolution indicates the smallest measurable interval for the clock.
  */
-int la_time_getres(la_time_t *res, la_clock_t clock);
+int la_time_getres(la_time_t *res, la_clock_t clock_type);
 
 /**
  * @brief Sleep for a specified duration.

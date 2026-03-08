@@ -39,6 +39,7 @@
  */
 
 #include <time.h>
+#include <errno.h>
 
 #include "../include/libAES67/time.h"
 #include "../include/libAES67/__tai.h"
@@ -55,15 +56,16 @@ int la_time_get(la_time_t *xtp, const la_clock_t clock_type) {
 
         case LA_CLOCK_TAI:
             #ifdef CLOCK_TAI
-                if (clock_gettime(CLOCK_TAI, &ts) != 0) return -1;
+                if (clock_gettime(CLOCK_TAI, &ts) != 0) { return -1; }
             #else
+                // TODO: Refactor
                 /*
                  * Simulate TAI on platforms without CLOCK_TAI (e.g., macOS).
                  * Read UTC via CLOCK_REALTIME and compute TAI using leap second table <__tai.h>.
                  */
                 if (clock_gettime(CLOCK_REALTIME, &ts) != 0) { return -1; }
 
-                int64_t ts_ns = (ts.tv_sec * LA_NS_PER_SEC) + ts.tv_nsec;
+                int64_t ts_ns = ((int64_t)ts.tv_sec * LA_NS_PER_SEC) + ts.tv_nsec;
 
                 ts_ns = la_utc_ns_to_tai_ns(ts_ns);
 
@@ -104,9 +106,102 @@ int la_time_get(la_time_t *xtp, const la_clock_t clock_type) {
     return 0;
 }
 
-int la_time_getres(la_time_t *res, la_clock_t clock) {}
+int la_time_getres(la_time_t *res, const la_clock_t clock_type) {
+    if (!res) { return -1; }
 
-int la_time_sleep(const la_time_t *duration) {}
+    struct timespec ts;
+
+    switch (clock_type) {
+        case LA_CLOCK_UTC:
+            if (clock_getres(CLOCK_REALTIME, &ts) != 0) { return -1; }
+            break;
+
+        case LA_CLOCK_TAI:
+            #ifdef CLOCK_TAI
+                if (clock_getres(CLOCK_TAI, &ts)  != 0) { return -1; }
+            #else
+                // FIXME: Refactor in reusable func with la_time_get
+                /*
+                 * Simulate TAI resolution on platforms without CLOCK_TAI (e.g., macOS).
+                 *
+                 * We query the resolution of CLOCK_REALTIME (UTC) and convert the interval
+                 * into the equivalent TAI interval using the UTC↔TAI conversion functions
+                 * from <__tai.h>.
+                 *
+                 * Since TAI differs from UTC only by an integer number of leap seconds,
+                 * the actual clock resolution is identical. However, converting through
+                 * la_utc_ns_to_tai_ns() ensures the returned interval is expressed in
+                 * the same TAI timescale used by the rest of the library.
+                 *
+                 * The subtraction of la_utc_ns_to_tai_ns(0) removes the constant epoch
+                 * offset (TAI-UTC = 10 s at 1970-01-01), leaving only the interval size.
+                 */
+                if (clock_getres(CLOCK_REALTIME, &ts) != 0) { return -1; }
+
+                int64_t res_ns = ((int64_t)ts.tv_sec * LA_NS_PER_SEC) + ts.tv_nsec;
+
+                res_ns = la_utc_ns_to_tai_ns(res_ns) - la_utc_ns_to_tai_ns(0);
+                ts.tv_sec  = res_ns / LA_NS_PER_SEC;
+                ts.tv_nsec = (long)(res_ns % LA_NS_PER_SEC);
+            #endif
+            break;
+
+        case LA_CLOCK_MONOTONIC:
+            #ifdef CLOCK_MONOTONIC_RAW
+                if (clock_getres(CLOCK_MONOTONIC_RAW, &ts) != 0) { return -1; }
+            #else
+                if (clock_getres(CLOCK_MONOTONIC, &ts) != 0) { return -1; }
+            #endif
+            break;
+
+        case LA_CLOCK_PROCESS:
+            if (clock_getres(CLOCK_PROCESS_CPUTIME_ID, &ts) != 0) { return -1; }
+            break;
+
+        case LA_CLOCK_THREAD:
+            if (clock_getres(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) { return -1; }
+            break;
+
+        case LA_CLOCK_PTP:
+        case LA_CLOCK_PTPv2:
+            // TODO: Implement PTP resolution
+            return -1;
+
+        default:
+            return -1;
+    }
+
+    res->sec = ts.tv_sec;
+    res->nsec = (int_fast32_t)ts.tv_nsec;
+
+    return 0;
+}
+
+int la_time_sleep(const la_time_t *duration) {
+    if (!duration) { return -1; }
+    if (duration->sec < 0 || (duration->sec == 0 && duration->nsec <= 0)) { return 0; }
+
+    struct timespec req;
+    struct timespec rem;
+
+    req.tv_sec  = duration->sec;
+    req.tv_nsec = (long)(duration->nsec);
+
+    /* Normalize duration to ensure tv_nsec < 1e9 */
+    if (req.tv_nsec >= LA_NS_PER_SEC) {
+        req.tv_sec += req.tv_nsec / LA_NS_PER_SEC;
+        req.tv_nsec %= LA_NS_PER_SEC;
+    }
+
+    while (nanosleep(&req, &rem) != 0) {
+        if (errno != EINTR) {
+            return -1;
+        }
+        req = rem;
+    }
+
+    return 0;
+}
 
 int la_time_sleep_until(const la_time_t *time, la_clock_t clock) {}
 
