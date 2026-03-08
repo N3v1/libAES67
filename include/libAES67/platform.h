@@ -41,6 +41,10 @@
 #ifndef LIBAES67_PLATFORM_H
 #define LIBAES67_PLATFORM_H
 
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifdef __cplusplus
     #define __LA_BEGIN_C_DECLS extern "C" {
     #define __LA_END_C_DECLS   }
@@ -106,5 +110,50 @@
 #else
     #define LA_API __attribute__((visibility("default")))
 #endif
+
+__LA_BEGIN_C_DECLS
+
+#define xasprintf(strp, ...) la_xasprintf((strp), ##__VA_ARGS__)
+
+LA_INLINE int la_xasprintf(char **strp, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+#if defined(__GLIBC__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+    const int ret = vasprintf(strp, fmt, args);
+    va_end(args);
+    return ret;
+#else
+    va_list args_copy;
+    va_copy(args_copy, args);
+
+    int len = vsnprintf(NULL, 0, fmt, args);
+    if (len < 0) {
+        va_end(args_copy);
+        va_end(args);
+        return -1;
+    }
+
+    *strp = malloc(len + 1);
+    if (!*strp) {
+        va_end(args_copy);
+        va_end(args);
+        return -1;
+    }
+
+    int ret = vsnprintf(*strp, (size_t)len + 1, fmt, args_copy);
+    if (ret < 0) {
+        free(*strp);
+        *strp = NULL;
+    }
+
+    va_end(args_copy);
+    va_end(args);
+
+    return ret;
+#endif
+}
+
+__LA_END_C_DECLS
 
 #endif /* LIBAES67_PLATFORM_H */

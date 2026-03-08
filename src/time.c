@@ -292,7 +292,6 @@ int la_tz_prep(la_timezone_t **timezone, const char *tzstring) {
 }
 
 char *la_tz_error(la_timezone_t *timezone) {
-    // TODO: portability: asprint
     const char *locale = setlocale(LC_ALL, NULL);
 
     if (!timezone) {
@@ -301,7 +300,7 @@ char *la_tz_error(la_timezone_t *timezone) {
 
     if (timezone->error_message) {
         char *msg = NULL;
-        asprintf(&msg, "Timezone error (code %d): %s. Locale: %s",
+        la_xasprintf(&msg, "Timezone error (code %d): %s. Locale: %s",
                  timezone->error_code,
                  timezone->error_message,
                  locale ? locale : "C");
@@ -310,13 +309,13 @@ char *la_tz_error(la_timezone_t *timezone) {
 
     if (!timezone->name || timezone->name[0] == '\0') {
         char *msg = NULL;
-        asprintf(&msg, "Timezone preparation failed. Invalid or empty TZ string. Locale: %s",
+        la_xasprintf(&msg, "Timezone preparation failed. Invalid or empty TZ string. Locale: %s",
                  locale ? locale : "C");
         return msg;
     }
 
     char *msg = NULL;
-    asprintf(&msg, "No error. Timezone: %s", timezone->name);
+    la_xasprintf(&msg, "No error. Timezone: %s", timezone->name);
     return msg;
 }
 
