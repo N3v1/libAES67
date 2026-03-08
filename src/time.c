@@ -282,9 +282,7 @@ int la_tz_prep(la_timezone_t **timezone, const char *tzstring) {
         }
     } else {
         if (__la_parse_posix_tz(tz, tzstring) != 0) {
-            tz->error_code = 2;
-            tz->error_message = strdup("Failed to parse POSIX timezone string");
-            free(tz); // fixme: mem leak tz->error_message
+            la_tz_free(tz);
             return -1;
         }
     }
