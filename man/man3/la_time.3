@@ -26,7 +26,7 @@ libAES67 C Library (libAES67)
 .BI "la_time_sleep_until(" "const la_time_t *target, const la_clock_t clock_type" );
 
 .I int
-.BI "la_time_conv(" "la_time_t *dst, int dst_clock_type, const la_time_t *src, int src_clock_type" );
+.BI "la_time_conv(" "la_time_t *dst, const la_clock_t dst_clock_type, const la_time_t *src, const la_clock_t src_clock_type" );
 
 .I int
 .BI "la_time_normalize(" "la_time_t *xtp" );

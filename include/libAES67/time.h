@@ -95,6 +95,7 @@ typedef struct {
 } la_time_t;
 
 // TODO: Add CLOCK_BOOTTIME => CLOCK_UPTIME, CLOCK_MONOTONIC_COARSE => MONOTONIC_RAW
+// https://github.com/freebsd/freebsd-src/commit/108de784513d87bbe850e7b003a73e26b5b54caa
 /**
  * @enum la_clock_t
  * @brief Enumeration of supported clock sources.
@@ -232,7 +233,7 @@ int la_time_sleep_until(const la_time_t *target, la_clock_t clock_type);
  * returned by clock type `src_clock_type` is converted into the value that would at the
  * same time have been returned by clock type `dst_clock_type` and stored in `*dst`.
  */
-int la_time_conv(la_time_t *dst, int dst_clock_type, const la_time_t *src, int src_clock_type);
+int la_time_conv(la_time_t *dst, la_clock_t dst_clock_type, const la_time_t *src, la_clock_t src_clock_type);
 
 /**
  * @brief Normalize a @p la_time_t so that nsec is within 0..999,999,999.

@@ -46,3 +46,8 @@ Makefile
 
 # Generated files
 *.log
+
+# Git related files
+*.diff
+diff.txt
+

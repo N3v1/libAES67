@@ -49,6 +49,17 @@ LA_INLINE void la_normalize_timespec(struct timespec *ts) {
     ts->tv_nsec %= LA_NS_PER_SEC;
 }
 
+LA_INLINE bool la_clock_is_relative(const la_clock_t clock_type) {
+    switch (clock_type) {
+        case LA_CLOCK_MONOTONIC:
+        case LA_CLOCK_PROCESS:
+        case LA_CLOCK_THREAD:
+            return true;
+        default:
+            return false;
+    }
+}
+
 int la_time_get(la_time_t *xtp, const la_clock_t clock_type) {
     if (!xtp) { return -1; }
 
@@ -241,30 +252,58 @@ int la_time_sleep_until(const la_time_t *target, const la_clock_t clock_type) {
     return 0;
 }
 
-// TODO: Implement conversions
-int la_time_conv(la_time_t *dst, int dst_clock_type, const la_time_t *src, int src_clock_type) {
-    if (!dst || !src) { return -1; }
+int la_time_conv(la_time_t *dst, const la_clock_t dst_clock_type, const la_time_t *src,
+                 const la_clock_t src_clock_type) {
+    if (!dst || !src) {
+        return -1;
+    }
 
     if (dst_clock_type == src_clock_type) {
         *dst = *src;
         return 0;
     }
 
-    int64_t ns = ((int64_t)src->sec * LA_NS_PER_SEC) + src->nsec;
+    /*
+     * Relative clocks (MONOTONIC, PROCESS, THREAD) measure time relative to
+     * an implementation-defined epoch and do not track wall-clock time.
+     *
+     * Converting between relative clocks and absolute clocks (UTC, TAI, PTP)
+     * would therefore require additional kernel state and cannot be performed
+     * reliably here. Such conversions are rejected to avoid producing
+     * misleading results.
+     */
+    if (la_clock_is_relative(src_clock_type) !=
+        la_clock_is_relative(dst_clock_type)) {
+        return -1;
+    }
+
+    int64_t ns;
+    if (__builtin_mul_overflow(src->sec, LA_NS_PER_SEC, &ns)) {
+        return -1;
+    }
+
+    if (__builtin_add_overflow(ns, src->nsec, &ns)) {
+        return -1;
+    }
+
     switch (src_clock_type) {
         case LA_CLOCK_UTC:
+            /* UTC is used as the baseline; no adjustments required */
             break;
 
         case LA_CLOCK_TAI:
+        case LA_CLOCK_PTP:
+        case LA_CLOCK_PTPv2:
+            /*
+             * As PTP clocks are usually synchronized to TAI internally we can
+             * convert them via la_tai_ns_to_utc_ns()
+             */
+            ns = la_tai_ns_to_utc_ns(ns);
             break;
 
         case LA_CLOCK_MONOTONIC:
         case LA_CLOCK_PROCESS:
         case LA_CLOCK_THREAD:
-            break;
-
-        case LA_CLOCK_PTP:
-        case LA_CLOCK_PTPv2:
             break;
 
         default:
@@ -273,19 +312,23 @@ int la_time_conv(la_time_t *dst, int dst_clock_type, const la_time_t *src, int s
 
     switch (dst_clock_type) {
         case LA_CLOCK_UTC:
+            /* Already in UTC baseline */
             break;
 
         case LA_CLOCK_TAI:
+        case LA_CLOCK_PTP:
+        case LA_CLOCK_PTPv2:
+            /*
+             * As PTP clocks are usually synchronized to TAI internally we can
+             * convert baseline UTC to TAI via la_utc_ns_to_tai_ns()
+             */
+            ns = la_utc_ns_to_tai_ns(ns);
             break;
 
         case LA_CLOCK_MONOTONIC:
         case LA_CLOCK_PROCESS:
         case LA_CLOCK_THREAD:
             return -1;
-
-        case LA_CLOCK_PTP:
-        case LA_CLOCK_PTPv2:
-            return 0;
 
         default:
             return -1;
