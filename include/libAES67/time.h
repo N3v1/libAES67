@@ -314,10 +314,11 @@ int la_time_to_ns(uint64_t *out, const la_time_t *time);
 /**
  * @brief Initialize @p la_time_t from nanoseconds.
  *
- * @param time Output time.
- * @param ns Total nanoseconds.
+ * @param out Pointer to the resulting time structure.
+ * @param nsec Total nanoseconds.
+ * @return 0 on success, -1 on error with errno set.
  */
-void la_time_from_ns(la_time_t *time, uint64_t ns);
+int la_time_from_ns(la_time_t *out, uint64_t nsec);
 
 /**
  * @brief Convert @p la_time_t to PTP representation (nanoseconds since PTP epoch).

@@ -111,6 +111,26 @@
     #define LA_API __attribute__((visibility("default")))
 #endif
 
+#ifdef LA_USE_SAFE_MUL64
+    #define LA_SAFE_MUL64(a, b, out)                        \
+        do {                                                \
+            if (__builtin_mul_overflow((a), (b), out)) {    \
+                errno = ERANGE;                             \
+                return -1;                                  \
+            }                                               \
+        } while (0)
+
+    #define LA_SAFE_ADD64(a, b, out)                        \
+        do {                                                \
+            if (__builtin_add_overflow((a), (b), out)) {    \
+                errno = ERANGE;                             \
+                return -1;                                  \
+            }                                               \
+        } while (0)
+#else
+#error "LA_USE_SAFE_MUL not defined, cannot use SAFE_MUL/ADD macros"
+#endif
+
 __LA_BEGIN_C_DECLS
 
 #define xasprintf(strp, ...) la_xasprintf((strp), ##__VA_ARGS__)

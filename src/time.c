@@ -42,6 +42,7 @@
 #include <errno.h>
 #include <_string.h>
 
+#define LA_USE_SAFE_MUL64
 #include "../include/libAES67/time.h"
 
 LA_INLINE void la_normalize_timespec(struct timespec *ts) {
@@ -490,52 +491,72 @@ int la_time_to_ns(uint64_t *out, const la_time_t *time) {
     int64_t tmp;
 
     /* d -> s */
-    if (__builtin_mul_overflow(time->day, LA_HOUR_PER_DAY, &tmp) ||
-        __builtin_mul_overflow(tmp, LA_MIN_PER_HOUR, &tmp) ||
-        __builtin_mul_overflow(tmp, LA_SEC_PER_MIN, &tmp) ||
-        __builtin_add_overflow(total, tmp, &total)) {
-        errno = ERANGE;
-        return -1;
-    }
+    LA_SAFE_MUL64(time->day, LA_HOUR_PER_DAY, &tmp);
+    LA_SAFE_MUL64(tmp, LA_MIN_PER_HOUR, &tmp);
+    LA_SAFE_MUL64(tmp, LA_SEC_PER_MIN, &tmp);
+    LA_SAFE_ADD64(total, tmp, &total);
 
     /* h -> s */
-    if (__builtin_mul_overflow(time->hour, LA_MIN_PER_HOUR, &tmp) ||
-        __builtin_mul_overflow(tmp, LA_SEC_PER_MIN, &tmp) ||
-        __builtin_add_overflow(total, tmp, &total)) {
-        errno = ERANGE;
-        return -1;
-    }
+    LA_SAFE_MUL64(time->hour, LA_MIN_PER_HOUR, &tmp);
+    LA_SAFE_MUL64(tmp, LA_SEC_PER_MIN, &tmp);
+    LA_SAFE_ADD64(total, tmp, &total);
 
-    /* m → s */
-    if (__builtin_mul_overflow(time->min, LA_SEC_PER_MIN, &tmp) ||
-        __builtin_add_overflow(total, tmp, &total)) {
-        errno = ERANGE;
-        return -1;
-    }
+    /* m -> s */
+    LA_SAFE_MUL64(time->min, LA_SEC_PER_MIN, &tmp);
+    LA_SAFE_ADD64(total, tmp, &total);
 
     /* s */
-    if (__builtin_add_overflow(total, time->sec, &total)) {
-        errno = ERANGE;
-        return -1;
-    }
+    LA_SAFE_ADD64(total, time->sec, &total);
 
-    /* s → nsec */
-    if (__builtin_mul_overflow(total, LA_NS_PER_SEC, &total) ||
-        __builtin_add_overflow(total, time->nsec, &total)) {
-        errno = ERANGE;
-        return -1;
-        }
-
-    if (total < 0) {
-        errno = ERANGE;
-        return -1;
-    }
+    /* s -> ns */
+    LA_SAFE_MUL64(total, LA_NS_PER_SEC, &total);
+    LA_SAFE_ADD64(total, time->nsec, &total);
 
     *out = (uint64_t)total;
     return 0;
 }
 
-void la_time_from_ns(la_time_t *time, uint64_t ns) {}
+int la_time_from_ns(la_time_t *out, const uint64_t nsec) {
+    if (!out) {
+        errno = EFAULT;
+        return -1;
+    }
+
+    const uint64_t total_sec = nsec / LA_NS_PER_SEC;
+    const int32_t nsec_rem   = (int32_t)(nsec % LA_NS_PER_SEC);
+
+    if (total_sec > INT64_MAX) {
+        errno = ERANGE;
+        return -1;
+    }
+
+    int64_t sec = (int64_t)total_sec;
+
+    const int64_t secs_per_day    = (int64_t)LA_HOUR_PER_DAY * LA_MIN_PER_HOUR * LA_SEC_PER_MIN;
+    const int64_t secs_per_hour   = (int64_t)LA_MIN_PER_HOUR * LA_SEC_PER_MIN;
+    const int64_t secs_per_minute = LA_SEC_PER_MIN;
+
+    const int32_t day    = (int32_t)(sec / secs_per_day);
+    if ((int64_t)day > INT32_MAX) {
+        errno = ERANGE;
+        return -1;
+    }
+    sec %= secs_per_day;
+
+    const int32_t hour   = (int32_t)(sec / secs_per_hour);
+    sec %= secs_per_hour;
+
+    const int32_t minute = (int32_t)(sec / secs_per_minute);
+    const int32_t second = (int32_t)(sec % secs_per_minute);
+
+    out->day  = day;
+    out->hour = hour;
+    out->min  = minute;
+    out->sec  = second;
+    out->nsec = nsec_rem;
+
+    return 0;
+}
 
 uint64_t la_time_to_ptp(const la_time_t *time) {}
 

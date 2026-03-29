@@ -47,8 +47,8 @@ libAES67 C Library (libAES67)
 .I int
 .BI "la_time_to_ns(" "uint64_t *out, const la_time_t *time" );
 
-.I void
-.BI "la_time_from_ns(" "la_time_t *time, uint64_t ns" );
+.I int
+.BI "la_time_from_ns(" "la_time_t *out, const uint64_t nsec" );
 
 .I uint64_t
 .BI "la_time_to_ptp(" "const la_time_t *time" );
@@ -179,8 +179,9 @@ is less than the second, 0 if they are equal, and 1 if the first
 is greater than the second.  If an invalid argument is supplied,
 the result is undefined.
 
-The \fBla_time_to_ns()\fR function returns 0 on success and -1 on
-error.  On error, \fIerrno\fR is set to indicate the failure.
+The \fBla_time_to_ns()\fR and \fBla_time_from_ns()\fR function
+returns 0 on success and -1 on error.  On error, \fIerrno\fR
+is set to indicate the failure.
 
 The function \fBla_time_to_ptp()\fR returns the corresponding PTP
 timestamp expressed in nanoseconds.
@@ -191,7 +192,7 @@ from the given time value and clock rate.
 The function \fBla_time_to_double()\fR returns the time value
 expressed as seconds in double precision.
 
-The functions \fBla_time_from_ns()\fR, \fBla_time_from_double()\fR,
+The functions \fBla_time_from_double()\fR,
 and \fBla_time_from_ptp()\fR do not return a value.
 
 .SH ERRORS
