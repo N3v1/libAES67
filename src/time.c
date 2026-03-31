@@ -527,7 +527,7 @@ int la_time_from_ns(la_time_t *out, const uint64_t nsec) {
     const uint64_t total_sec = nsec / LA_NS_PER_SEC;
     const int32_t nsec_rem   = (int32_t)(nsec % LA_NS_PER_SEC);
 
-    if (total_sec > INT64_MAX) {
+    if (total_sec > (uint64_t)INT64_MAX) {
         errno = ERANGE;
         return -1;
     }
@@ -536,13 +536,14 @@ int la_time_from_ns(la_time_t *out, const uint64_t nsec) {
 
     const int64_t secs_per_day    = (int64_t)LA_HOUR_PER_DAY * LA_MIN_PER_HOUR * LA_SEC_PER_MIN;
     const int64_t secs_per_hour   = (int64_t)LA_MIN_PER_HOUR * LA_SEC_PER_MIN;
-    const int64_t secs_per_minute = LA_SEC_PER_MIN;
+    const int64_t secs_per_minute = (int64_t)LA_SEC_PER_MIN;
 
-    const int32_t day    = (int32_t)(sec / secs_per_day);
-    if ((int64_t)day > INT32_MAX) {
+    const int64_t day64 = sec / secs_per_day;
+    if (day64 > INT32_MAX) {
         errno = ERANGE;
         return -1;
     }
+    const  int32_t day = (int32_t)day64;
     sec %= secs_per_day;
 
     const int32_t hour   = (int32_t)(sec / secs_per_hour);

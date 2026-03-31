@@ -56,9 +56,15 @@
 #include <stdint.h>
 
 #define LA_NS_PER_SEC        1000000000LL
+#define LA_NS_PER_HALF_SEC   500'000'000ULL
 #define LA_SEC_PER_MIN       60
 #define LA_MIN_PER_HOUR      60
 #define LA_HOUR_PER_DAY      24
+
+#define LA_SEC(x)   ((uint64_t)(x))
+#define LA_MIN(x)   (LA_SEC(x) * 60ULL)
+#define LA_HOUR(x)  (LA_MIN(x) * 60ULL)
+#define LA_DAY(x)   (LA_HOUR(x) * 24ULL)
 
 /**
  * @def LA_CLOCK_1588
