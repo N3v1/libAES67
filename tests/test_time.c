@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * test/time.c
+ * test/test_time.c
  * Description: Tests for clock and time abstraction.
  */
 
@@ -86,9 +86,63 @@ static void test_la_time_init(void) {
  *    - static void test_la_time_normalize(void) {}
  *    - static void test_la_time_add(void) {}
  *    - static void test_la_time_sub(void) {}
- *    - static void test_la_time_cmp(void) {}
- *    - static void test_la_time_to_ns(void) {}
 */
+
+//============================================================================
+static void test_la_time_cmp_same_value(void) {
+    printf("== Same Value Comparison\n");
+
+    const la_time_t val = { .nsec = 0, .sec = 30, .min = 4, .hour = 1, .day = 0  };
+    const int ret = la_time_cmp(&val, &val);
+
+    assert(ret == 0);
+}
+
+static void test_la_time_cmp_different_values_lhs(void) {
+    printf("== Different Value Comparison lhs\n");
+
+    const la_time_t lhs = { .nsec = 1, .sec = 1, .min = 1, .hour = 1, .day = 1 };
+    const la_time_t rhs = { .nsec = 0, .sec = 0, .min = 0, .hour = 0, .day = 0 };
+    const int ret = la_time_cmp(&lhs, &rhs);
+
+    assert(ret == 1); /* lhs larger than rhs */
+}
+
+static void test_la_time_cmp_different_values_rhs(void) {
+    printf("== Different Value Comparison rhs\n");
+
+    const la_time_t lhs = { .nsec = 0, .sec = 0, .min = 0, .hour = 0, .day = 0 };
+    const la_time_t rhs = { .nsec = 1, .sec = 1, .min = 1, .hour = 1, .day = 1 };
+    const int ret = la_time_cmp(&lhs, &rhs);
+
+    assert(ret == -1); /* rhs larger than lhs */
+}
+
+//=============================================================================
+static void test_la_time_to_ns_basic_conversion(void) {
+    printf("== Basic Conversion\n");
+
+    uint64_t output;
+    const la_time_t time = { .nsec = 0, .sec = 1, .min = 1, .hour = 1, .day = 1 };
+
+    const int ret = la_time_to_ns(&output, &time);
+    assert(ret == 0);
+
+    const uint64_t expected_sec = LA_DAY(1) + LA_HOUR(1) + LA_MIN(1) + LA_SEC(1);
+    const uint64_t expected_nsec = expected_sec * LA_NS_PER_SEC;
+
+    assert(output == expected_nsec);
+}
+
+static void test_la_time_to_ns_null_ptr_error(void) {
+    printf("== ERROR NULL ptr\n");
+
+    uint64_t output;
+    const int ret = la_time_to_ns(&output, NULL);
+
+    assert(ret == -1);
+    assert(errno == EFAULT);
+}
 
 //==============================================================================
 static void test_la_time_from_ns_basic_conversion(void) {
@@ -135,11 +189,7 @@ static void test_la_time_from_ns_large_values_one_day(void) {
     const int ret = la_time_from_ns(&t, ns);
 
     assert(ret == 0);
-    assert(t.day == 1);
-    assert(t.hour == 0);
-    assert(t.min == 0);
-    assert(t.sec == 0);
-    assert(t.nsec == 0);
+    la_test_assert_time_eq(&t, 1, 0, 0, 0, 0);
 }
 
 static void test_la_time_from_ns_off_by_one_one_ns_before(void) {
@@ -150,11 +200,7 @@ static void test_la_time_from_ns_off_by_one_one_ns_before(void) {
     const int ret = la_time_from_ns(&t, ns);
 
     assert(ret == 0);
-    assert(t.day == 0);
-    assert(t.hour == 0);
-    assert(t.min == 0);
-    assert(t.sec == 0);
-    assert(t.nsec == LA_NS_PER_SEC - 1);
+    la_test_assert_time_eq(&t, 0, 0, 0, 0, LA_NS_PER_SEC - 1);
 }
 
 static void test_la_time_from_ns_off_by_one_one_exactly_one_sec(void) {
@@ -165,11 +211,7 @@ static void test_la_time_from_ns_off_by_one_one_exactly_one_sec(void) {
     const int ret = la_time_from_ns(&t, ns);
 
     assert(ret == 0);
-    assert(t.day == 0);
-    assert(t.hour == 0);
-    assert(t.min == 0);
-    assert(t.sec == 1);
-    assert(t.nsec == 0);
+    la_test_assert_time_eq(&t, 0, 0, 0, 1, 0);
 }
 
 static void test_la_time_from_ns_invariants(void) {
@@ -197,6 +239,15 @@ static void test_la_time_from_ns_null_ptr_error(void) {
 //==============================================================================
 int main(void) {
     test_la_time_init();
+
+    printf("========= Running la_time_cmp =========\n");
+    test_la_time_cmp_same_value();
+    test_la_time_cmp_different_values_lhs();
+    test_la_time_cmp_different_values_rhs();
+
+    printf("======== Running la_time_to_ns ========\n");
+    test_la_time_to_ns_basic_conversion();
+    test_la_time_to_ns_null_ptr_error();
 
     printf("======= Running la_time_from_ns =======\n");
     test_la_time_from_ns_basic_conversion();
