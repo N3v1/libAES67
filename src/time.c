@@ -362,6 +362,7 @@ int la_time_normalize(la_time_t *xtp) {
 
 int la_time_add(la_time_t *dst, const la_time_t *lhs, const la_time_t *rhs) {
     if (!dst || !lhs || !rhs) {
+        errno = EFAULT;
         return -1;
     }
 
@@ -396,6 +397,7 @@ int la_time_add(la_time_t *dst, const la_time_t *lhs, const la_time_t *rhs) {
 
 int la_time_sub(la_time_t *dst, const la_time_t *lhs, const la_time_t *rhs) {
     if (!dst || !lhs || !rhs) {
+        errno = EFAULT;
         return -1;
     }
 
@@ -404,6 +406,7 @@ int la_time_sub(la_time_t *dst, const la_time_t *lhs, const la_time_t *rhs) {
      * If rhs > lhs, subtraction cannot proceed.
      */
     if (la_time_cmp(lhs, rhs) < 0) {
+        errno = ERANGE;
         return -1;
     }
 
@@ -442,6 +445,15 @@ int la_time_sub(la_time_t *dst, const la_time_t *lhs, const la_time_t *rhs) {
     if (dst->hour < 0) {
         dst->day--;
         dst->hour += LA_HOUR_PER_DAY;
+    }
+
+    /*
+     * This should not occur as la_time_cmp() ensures lhs >= rhs.
+     * Retained as a defensive safeguard against inconsistent input.
+     */
+    if (dst->day < 0) {
+        errno = ERANGE;
+        return -1;
     }
 
     return 0;

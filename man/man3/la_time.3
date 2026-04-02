@@ -141,10 +141,12 @@ without sleeping.
 
 The functions \fBla_time_add()\fR and \fBla_time_sub()\fR perform arithmetic
 on time values.  Addition propagates carry from nanoseconds through days
-as required.  Subtraction propagates borrow in the opposite direction and
-fails if the result would be negative.  The function \fBla_time_cmp()\fR
-compares two values by examining fields in order of decreasing significance,
-beginning with days and ending with nanoseconds.
+as required.  Subtraction propagates borrow in the opposite direction and fails
+if the result would be negative.  A defensive safeguard ensures that even if
+inconsistent inputs bypass the initial check, the function will fail and set
+\fIerrno\fR to \fBERANGE\fR.  The function \fBla_time_cmp()\fR compares two
+values by examining fields in order of decreasing significance, beginning with
+days and ending with nanoseconds.
 
 The \fBla_time_conv()\fR function converts a time value from one clock
 domain to another.  When both clocks represent real time, the conversion
@@ -170,10 +172,21 @@ the specified clock rate.
 .SH RETURN VALUES
 The functions \fBla_time_get()\fR, \fBla_time_getres()\fR,
 \fBla_time_sleep()\fR, \fBla_time_sleep_until()\fR,
-\fBla_time_conv()\fR, \fBla_time_normalize()\fR,
-\fBla_time_add()\fR, and \fBla_time_sub()\fR return 0 on success
-and -1 on error.
+\fBla_time_conv()\fR and \fBla_time_normalize()\fR return 0 on
+success and -1 on error.
 
+The functions \fBla_time_add()\fR and \fBla_time_sub()\fR return 0 on success.
+On error, they return -1 and set \fIerrno\fR as follows:
+
+.TP
+.B EFAULT
+One or more input pointers (\fIdst\fR, \fIlhs\fR, or \fIrhs\fR) is NULL.
+
+.TP
+.B ERANGE
+For \fBla_time_sub()\fR, the subtraction would result in a negative time value.
+
+.LP
 The function \fBla_time_cmp()\fR returns -1 if the first argument
 is less than the second, 0 if they are equal, and 1 if the first
 is greater than the second.  If an invalid argument is supplied,
@@ -196,7 +209,18 @@ The functions \fBla_time_from_double()\fR,
 and \fBla_time_from_ptp()\fR do not return a value.
 
 .SH ERRORS
-The \fBla_time_to_ns()\fR function fails if:
+The functions \fBla_time_add()\fR and \fBla_time_sub()\fR fail if:
+
+.TP
+.B EFAULT
+Any of the arguments (\fIdst\fR, \fIlhs\fR, or \fIrhs\fR) is NULL.
+
+.TP
+.B ERANGE
+For \fBla_time_sub()\fR, the result would be negative (rhs > lhs).
+
+.LP
+The functions \fBla_time_to_ns()\fR and \fBla_time_from_ns()\fR fail if:
 
 .TP
 .B EFAULT

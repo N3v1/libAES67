@@ -49,6 +49,7 @@ cmake_install.cmake
 
 # Git related files
 *.diff
+*.patch
 diff.txt
 
 *.asn

@@ -49,6 +49,7 @@
 #include <errno.h>
 #include <inttypes.h>
 
+// TODO: Refactor argument order to be ascending: *t, nsec, .., day
 static void la_test_assert_time_eq(const la_time_t *t,
                                    const int_fast32_t day,
                                    const int_fast32_t hour,
@@ -84,9 +85,100 @@ static void test_la_time_init(void) {
  *    - static void test_la_time_getres(void) {}
  *    - static void test_la_time_conv(void) {}
  *    - static void test_la_time_normalize(void) {}
- *    - static void test_la_time_add(void) {}
- *    - static void test_la_time_sub(void) {}
-*/
+ */
+
+//===========================================================================
+static void test_la_time_add(void) {
+    printf("== Basic addition\n");
+
+    la_time_t dst;
+    const la_time_t val = { .nsec = 0, .sec = 0, .min = 30, .hour = 1, .day = 0 };
+    const int ret = la_time_add(&dst, &val, &val);
+
+    assert(ret == 0);
+    la_test_assert_time_eq(&dst, 0, 3, 0, 0, 0);
+}
+
+static void test_la_time_add_null_ptr_error(void) {
+    printf("== ERROR NULL ptr\n");
+
+    la_time_t dst;
+    const int ret = la_time_add(&dst, NULL, NULL);
+
+    assert(ret == -1);
+    assert(errno == EFAULT);
+}
+
+//===========================================================================
+static void test_la_time_sub(void) {
+    printf("== Basic subtraction\n");
+
+    la_time_t dst;
+    const la_time_t lhs = { .nsec = 0, .sec = 20, .min = 4, .hour = 2, .day = 0 };
+    const la_time_t rhs = { .nsec = 0, .sec = 20, .min = 2, .hour = 1, .day = 0 };
+    const int ret = la_time_sub(&dst, &lhs, &rhs);
+
+    assert(ret == 0);
+    la_test_assert_time_eq(&dst, 0, 1, 2, 0, 0);
+}
+
+static void test_la_time_sub_negative(void) {
+    printf("== Negative la_time_t\n");
+
+    la_time_t dst;
+    const la_time_t lhs = { .nsec = 0, .sec = 0, .min = 0, .hour = 0, .day = 0 };
+    const la_time_t rhs = { .nsec = 1, .sec = 1, .min = 1, .hour = 1, .day = 1 };
+    const int ret = la_time_sub(&dst, &lhs, &rhs);
+
+    assert(ret == -1); /* underflow in la_time_t due to negative values */
+    assert(errno == ERANGE);
+}
+
+static void test_la_time_sub_carry(void) {
+    printf("== Carrying & Borrowing\n");
+
+    la_time_t dst;
+    const la_time_t lhs = { .nsec = 0, .sec = 30, .min = 6, .hour = 1, .day = 0 };
+    const la_time_t rhs = { .nsec = 0, .sec = 40, .min = 0, .hour = 0, .day = 0 };
+    const int ret = la_time_sub(&dst, &lhs, &rhs);
+
+    assert(ret == 0);
+    la_test_assert_time_eq(&dst, 0, 1, 5, 50, 0);
+}
+
+static void test_la_time_sub_carry_day(void) {
+    printf("== Carrying & Borrowing (day)\n");
+
+    la_time_t dst;
+    const la_time_t lhs = { .nsec = 0, .sec = 0, .min = 0, .hour = 12, .day = 1 };
+    const la_time_t rhs = { .nsec = 0, .sec = 0, .min = 0, .hour = 14, .day = 0  };
+    const int ret = la_time_sub(&dst, &lhs, &rhs);
+
+    assert(ret == 0);
+    la_test_assert_time_eq(&dst, 0, 22, 0, 0, 0);
+}
+
+static void test_la_time_sub_ns(void) {
+    printf("== Nanosecond-precision subtraction\n");
+
+    la_time_t dst;
+    const la_time_t lhs = { .nsec = LA_NS_PER_SEC, .sec = 0, .min = 0, .hour = 0, .day = 0 };
+    const la_time_t rhs = { .nsec = LA_NS_PER_HALF_SEC, .sec = 0, .min = 0, .hour = 0, .day = 0 };
+    const int ret = la_time_sub(&dst, &lhs, &rhs);
+
+    assert(ret == 0);
+    la_test_assert_time_eq(&dst, 0, 0, 0, 0, LA_NS_PER_HALF_SEC);
+}
+
+static void test_la_time_sub_null_ptr_error(void) {
+    printf("== ERROR NULL ptr\n");
+
+    la_time_t dst;
+    const int ret = la_time_sub(&dst, NULL, NULL);
+
+    assert(ret == -1);
+    assert(errno == EFAULT);
+}
 
 //============================================================================
 static void test_la_time_cmp_same_value(void) {
@@ -116,6 +208,13 @@ static void test_la_time_cmp_different_values_rhs(void) {
     const int ret = la_time_cmp(&lhs, &rhs);
 
     assert(ret == -1); /* rhs larger than lhs */
+}
+
+static void test_la_time_cmp_null_ptr_error(void) {
+    printf("== ERROR NULL ptr\n");
+
+    const int ret = la_time_cmp(NULL, NULL);
+    assert(ret == -1);
 }
 
 //=============================================================================
@@ -240,10 +339,23 @@ static void test_la_time_from_ns_null_ptr_error(void) {
 int main(void) {
     test_la_time_init();
 
+    printf("========= Running la_time_add =========\n");
+    test_la_time_add();
+    test_la_time_add_null_ptr_error();
+
+    printf("========= Running la_time_sub =========\n");
+    test_la_time_sub();
+    test_la_time_sub_negative();
+    test_la_time_sub_carry();
+    test_la_time_sub_carry_day();
+    test_la_time_sub_ns();
+    test_la_time_sub_null_ptr_error();
+
     printf("========= Running la_time_cmp =========\n");
     test_la_time_cmp_same_value();
     test_la_time_cmp_different_values_lhs();
     test_la_time_cmp_different_values_rhs();
+    test_la_time_cmp_null_ptr_error();
 
     printf("======== Running la_time_to_ns ========\n");
     test_la_time_to_ns_basic_conversion();
