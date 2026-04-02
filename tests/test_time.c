@@ -84,8 +84,48 @@ static void test_la_time_init(void) {
  *    - static void test_la_time_get(void) {}
  *    - static void test_la_time_getres(void) {}
  *    - static void test_la_time_conv(void) {}
- *    - static void test_la_time_normalize(void) {}
  */
+
+//===========================================================================
+static void test_la_time_normalize(void) {
+    printf("== Basic Normalization\n");
+
+    la_time_t xtp = { .nsec = 0, .sec = 30, .min = 30, .hour = 1, .day = 0 };
+    const int ret = la_time_normalize(&xtp);
+
+    assert(ret == 0);
+    la_test_assert_time_eq(&xtp, 0, 1, 30, 30, 0);
+}
+
+static void test_la_time_normalize_input(void) {
+    printf("== Normalize la_time_t value\n");
+
+    la_time_t xtp = { .nsec = 0, .sec = 70, .min = 70, .hour = 25, .day = 0 };
+    const int ret = la_time_normalize(&xtp);
+
+    assert(ret == 0);
+    la_test_assert_time_eq(&xtp, 1, 2, 11, 10, 0);
+}
+
+static void test_la_time_normalize_out_of_range(void) {
+    printf("== ERROR Out of Range\n");
+
+    la_time_t xtp = { .nsec = 0, .sec = -70, .min = -70, .hour = -25, .day = 0 };
+    const int ret = la_time_normalize(&xtp);
+
+    assert(ret == -1);
+    assert(errno == ERANGE);
+}
+
+
+static void test_la_time_normalize_null_ptr_error(void) {
+    printf("== ERROR NULL ptr\n");
+
+    const int ret = la_time_normalize(NULL);
+
+    assert(ret == -1);
+    assert(errno == EFAULT);
+}
 
 //===========================================================================
 static void test_la_time_add(void) {
@@ -338,6 +378,12 @@ static void test_la_time_from_ns_null_ptr_error(void) {
 //==============================================================================
 int main(void) {
     test_la_time_init();
+
+    printf("====== Running la_time_normalize ======\n");
+    test_la_time_normalize();
+    test_la_time_normalize_input();
+    test_la_time_normalize_out_of_range();
+    test_la_time_normalize_null_ptr_error();
 
     printf("========= Running la_time_add =========\n");
     test_la_time_add();

@@ -346,15 +346,49 @@ int la_time_conv(la_time_t *dst, const la_clock_t dst_clock_type, const la_time_
 
 int la_time_normalize(la_time_t *xtp) {
     if (!xtp) {
+        errno = EFAULT;
         return -1;
     }
 
-    xtp->sec += xtp->nsec / LA_NS_PER_SEC;
-    xtp->nsec %= LA_NS_PER_SEC;
+    if (xtp->nsec >= LA_NS_PER_SEC) {
+        xtp->sec  += xtp->nsec / LA_NS_PER_SEC;
+        xtp->nsec %= LA_NS_PER_SEC;
+    } else if (xtp->nsec < 0) {
+        const int64_t borrow = (-xtp->nsec + LA_NS_PER_SEC - 1) / LA_NS_PER_SEC;
+        xtp->sec  -= borrow;
+        xtp->nsec += borrow * LA_NS_PER_SEC;
+    }
 
-    if (xtp->nsec < 0) {
-        xtp->sec--;
-        xtp->nsec += LA_NS_PER_SEC;
+    if (xtp->sec >= LA_SEC_PER_MIN) {
+        xtp->min  += xtp->sec / LA_SEC_PER_MIN;
+        xtp->sec  %= LA_SEC_PER_MIN;
+    } else if (xtp->sec < 0) {
+        const int64_t borrow = (-xtp->sec + LA_SEC_PER_MIN - 1) / LA_SEC_PER_MIN;
+        xtp->min  -= borrow;
+        xtp->sec  += borrow * LA_SEC_PER_MIN;
+    }
+
+    if (xtp->min >= LA_MIN_PER_HOUR) {
+        xtp->hour += xtp->min / LA_MIN_PER_HOUR;
+        xtp->min  %= LA_MIN_PER_HOUR;
+    } else if (xtp->min < 0) {
+        const int64_t borrow = (-xtp->min + LA_MIN_PER_HOUR - 1) / LA_MIN_PER_HOUR;
+        xtp->hour -= borrow;
+        xtp->min  += borrow * LA_MIN_PER_HOUR;
+    }
+
+    if (xtp->hour >= LA_HOUR_PER_DAY) {
+        xtp->day  += xtp->hour / LA_HOUR_PER_DAY;
+        xtp->hour %= LA_HOUR_PER_DAY;
+    } else if (xtp->hour < 0) {
+        const int64_t borrow = (-xtp->hour + LA_HOUR_PER_DAY - 1) / LA_HOUR_PER_DAY;
+        xtp->day  -= borrow;
+        xtp->hour += borrow * LA_HOUR_PER_DAY;
+    }
+
+    if (xtp->day < 0) {
+        errno = ERANGE;
+        return -1;
     }
 
     return 0;
