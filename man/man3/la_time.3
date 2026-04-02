@@ -154,8 +154,16 @@ applies the required offset between the corresponding timescales.  This
 includes the adjustment between UTC and TAI.  Conversions between real-time
 clocks and relative clocks are not defined and fail.
 
-The function \fBla_time_normalize()\fR adjusts a time value so that all
-fields fall within their canonical ranges.
+The function \fBla_time_normalize()\fR adjusts a \fBla_time_t\fR time value
+so that all fields remain within their canonical ranges.  Nanoseconds, seconds,
+minutes, and hours are propagated to larger units when they exceed their maximum
+or are negative.  Negative values borrow from the next larger unit.  If the day
+field would become negative, normalization fails.  After a successful normalization
+the fields satisfy:
+
+.nf
+    0 ≤ nsec < 1_000_000_000, 0 ≤ sec < 60, 0 ≤ min < 60, +0 ≤ hour < 24, and day ≥ 0.
+.fi
 
 The function \fBla_time_to_ns()\fR converts a \fBla_time_t\fR value
 to a count of nanoseconds.  The function \fBla_time_from_ns()\fR
@@ -171,8 +179,7 @@ the specified clock rate.
 
 .SH RETURN VALUES
 The functions \fBla_time_get()\fR, \fBla_time_getres()\fR,
-\fBla_time_sleep()\fR, \fBla_time_sleep_until()\fR,
-\fBla_time_conv()\fR and \fBla_time_normalize()\fR return 0 on
+\fBla_time_sleep()\fR, \fBla_time_sleep_until()\fR and \fBla_time_conv()\fR return 0 on
 success and -1 on error.
 
 The functions \fBla_time_add()\fR and \fBla_time_sub()\fR return 0 on success.
@@ -185,6 +192,18 @@ One or more input pointers (\fIdst\fR, \fIlhs\fR, or \fIrhs\fR) is NULL.
 .TP
 .B ERANGE
 For \fBla_time_sub()\fR, the subtraction would result in a negative time value.
+
+.LP
+The function \fBla_time_normalize()\fR returns 0 on success and -1 with respective
+\fIerrno\fR on error:
+
+.TP
+.B EFAULT
+The input pointer is NULL.
+
+.TP
+.B ERANGE
+Normalization would result in a negative day field.
 
 .LP
 The function \fBla_time_cmp()\fR returns -1 if the first argument
