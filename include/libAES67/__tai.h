@@ -51,7 +51,7 @@
 #include <libAES67/platform.h>
 
 #define LA_TAI_UTC_INITIAL_OFFSET        10
-#define LA_EXPECTED_FINAL_TAI_UTC_OFFSET 37
+#define LA_EXPECTED_FINAL_TAI_UTC_OFFSET 37            /* Update after future IERS announcement */
 #define LA_NS_PER_SEC                    1000000000LL
 
 __LA_BEGIN_C_DECLS

@@ -339,6 +339,9 @@ int la_time_conv(la_time_t *dst, const la_clock_t dst_clock_type, const la_time_
 
     dst->sec = ns / LA_NS_PER_SEC;
     dst->nsec = (int_fast32_t)(ns % LA_NS_PER_SEC);
+    dst->min = src->min;
+    dst->hour = src->hour;
+    dst->day = src->day;
     la_time_normalize(dst);
 
     return 0;

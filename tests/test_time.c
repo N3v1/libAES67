@@ -45,6 +45,7 @@
 #include <libAES67/__tai.h>
 
 #include <time.h>
+#include <string.h>
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -83,8 +84,116 @@ static void test_la_time_init(void) {
  *    - static void test_la_tai_ns_to_utc_ns(void) {}
  *    - static void test_la_time_get(void) {}
  *    - static void test_la_time_getres(void) {}
- *    - static void test_la_time_conv(void) {}
  */
+
+//===========================================================================
+static void test_la_time_conv_utc_to_tai_1970(void) {
+    printf("== Conversion UTC-TAI 1970\n");
+
+    la_time_t dst;
+    const la_time_t src = { .nsec = 0, .sec = 30, .min = 1, .hour = 1, .day = 0 };
+    const int ret = la_time_conv(&dst, LA_CLOCK_TAI, &src, LA_CLOCK_UTC);
+
+    assert(ret == 0);
+    /*
+     * la_time_t represents a timestamp relative to the Unix epoch
+     * (1970-01-01 00:00:00 UTC). At that point, the TAI-UTC offset
+     * was the initial +10 seconds as defined by the IERS Bulletin C.
+     *
+     * Therefore:
+     *      1970-01-01 01:01:30 UTC + 10 sec TAI offset => 1970-01-01 01:01:40 TAI
+     *
+     * Reference:
+     *      - TAI Source <libAES67/__tai.h>
+     *      - IERS Bulletin C / NTP leap-seconds.list
+     */
+    la_test_assert_time_eq(&dst, 0, 1, 1, 40, 0);
+}
+
+static void test_la_time_conv_tai_to_utc_1970(void) {
+    printf("== Conversion TAI-UTC 1970\n");
+
+    la_time_t dst;
+    const la_time_t src = { .nsec = 0, .sec = 40, .min = 1, .hour = 1, .day = 0 };
+    const int ret = la_time_conv(&dst, LA_CLOCK_UTC, &src, LA_CLOCK_TAI);
+
+    assert(ret == 0);
+    /*
+     * Inverse of the above conversion. At epoch, TAI-UTC = +10s,
+     * so the offset is subtracted when converting back to UTC.
+     *
+     *      1970-01-01 01:01:40 TAI - 10 sec TAI offset => 1970-01-01 01:01:30 UTC
+     */
+    la_test_assert_time_eq(&dst, 0, 1, 1, 30, 0);
+}
+
+static void test_la_time_conv_utc_to_tai_2017(void) {
+    printf("== Conversion UTC-TAI-2017\n");
+
+    la_time_t dst;
+    const la_time_t src = { .nsec = 0, .sec = 1483228800, .min = 0, .hour = 0, .day = 0 };
+    const int ret = la_time_conv(&dst, LA_CLOCK_TAI, &src, LA_CLOCK_UTC);
+
+    assert(ret == 0);
+    /*
+     * 2017-01-01 00:00:00 UTC + 37 sec => 2017-01-01 00:00:37 TAI
+     */
+    la_test_assert_time_eq(&dst, 17167, 0, 0, 37, 0);
+}
+
+static void test_la_time_conv_tai_to_utc_2017(void) {
+    printf("== Conversion TAI-UTC-2017\n");
+
+    la_time_t dst;
+    const la_time_t src = { .nsec = 0, .sec = 1483228800, .min = 0, .hour = 0, .day = 0 };
+    const int ret = la_time_conv(&dst, LA_CLOCK_UTC, &src, LA_CLOCK_TAI);
+
+    assert(ret == 0);
+    /*
+     * 2017-01-01 00:00:00 TAI - 37 sec => 2016-12-31 23:59:24 UTC
+     */
+    la_test_assert_time_eq(&dst, 17166, 23, 59, 24, 0);
+}
+
+static void test_la_time_conv_utc_to_tai_leap_transition_2017(void) {
+    printf("== Conversion UTC-TAI-LEAP-transition\n");
+
+    const la_time_t before = { .sec = 1483228799 }; /* 2016-12-31 23:59:59 */
+    const la_time_t after  = { .sec = 1483228800 }; /* 2017-01-01 00:00:00 */
+
+    la_time_t dst_before, dst_after;
+
+    la_time_conv(&dst_before, LA_CLOCK_TAI, &before, LA_CLOCK_UTC);
+    la_time_conv(&dst_after,  LA_CLOCK_TAI, &after,  LA_CLOCK_UTC);
+
+    /* Diffrence should be 2 seconds (1 real second and 1 leap second) */
+    int64_t ns_before, ns_after;
+    la_time_to_ns((uint64_t *)&ns_before, &dst_before);
+    la_time_to_ns((uint64_t *)&ns_after,  &dst_after);
+
+    assert(ns_after - ns_before == 2 * LA_NS_PER_SEC);
+}
+
+static void test_la_time_conv_same_clk_types(void) {
+    printf("== Same clock types\n");
+
+    la_time_t dst;
+    const la_time_t src = { .sec = 1483228800 }; /* 2017-01-01 00:00:00 UTC */
+    const int ret = la_time_conv(&dst, LA_CLOCK_UTC, &src, LA_CLOCK_UTC);
+
+    assert(ret == 0);
+    assert(memcmp(&dst, &src, sizeof(la_time_t)) == 0);
+}
+
+static void test_la_time_conv_relative_to_absolute_error(void) {
+    printf("== ERROR Relative to absolute conversion\n");
+
+    la_time_t dst;
+    const la_time_t src = { .sec = 1483228800 }; /* 2017-01-01 00:00:00 */
+    const int ret = la_time_conv(&dst, LA_CLOCK_MONOTONIC, &src, LA_CLOCK_UTC);
+
+    assert(ret == -1); /* Fails due to la_clock_is_relative check */
+}
 
 //===========================================================================
 static void test_la_time_normalize(void) {
@@ -116,7 +225,6 @@ static void test_la_time_normalize_out_of_range(void) {
     assert(ret == -1);
     assert(errno == ERANGE);
 }
-
 
 static void test_la_time_normalize_null_ptr_error(void) {
     printf("== ERROR NULL ptr\n");
@@ -378,6 +486,15 @@ static void test_la_time_from_ns_null_ptr_error(void) {
 //==============================================================================
 int main(void) {
     test_la_time_init();
+
+    printf("========= Running la_time_conv ========\n");
+    test_la_time_conv_utc_to_tai_1970();
+    test_la_time_conv_tai_to_utc_1970();
+    test_la_time_conv_utc_to_tai_2017();
+    test_la_time_conv_tai_to_utc_2017();
+    test_la_time_conv_utc_to_tai_leap_transition_2017();
+    test_la_time_conv_same_clk_types();
+    test_la_time_conv_relative_to_absolute_error();
 
     printf("====== Running la_time_normalize ======\n");
     test_la_time_normalize();
